@@ -3,6 +3,8 @@ import {
   Body,
   Controller,
   Get,
+  Param,
+  Patch,
   Post,
   Render,
 } from '@nestjs/common';
@@ -12,6 +14,7 @@ import { AppService } from './app.service';
 import RegisterDTO from './register.dto';
 import User from './user.entity';
 import * as bcrypt from 'bcrypt';
+import ChangeUserDTO from './changeuser.dto';
 
 @Controller()
 export class AppController {
@@ -48,6 +51,36 @@ export class AppController {
     const user = new User();
     user.email = registerdto.email;
     user.password = await bcrypt.hash(registerdto.password, 15);
+    await userRepo.save(user);
+    delete user.password;
+    return user;
+  }
+  @Patch('users/:id')
+  async patchUser(
+    @Body() changeuserdto: ChangeUserDTO,
+    @Param('id') id: number,
+  ) {
+    if (!changeuserdto.email.includes('@')) {
+      throw new BadRequestException('Email must contain a @ character');
+    }
+    if (changeuserdto.password !== changeuserdto.passwordAgain) {
+      throw new BadRequestException('The two passwords must match');
+    }
+    if (changeuserdto.password.length < 8) {
+      throw new BadRequestException(
+        'The password must be at least 8 characters long',
+      );
+    }
+    if (!changeuserdto.profilepictureurl.startsWith('http://' || 'https://')) {
+      throw new BadRequestException(
+        'The Profile Picture url must start with http:// or https://',
+      );
+    }
+    const userRepo = this.dataSource.getRepository(User);
+    //userRepo.update(id,)
+    const user = await userRepo.findOneBy({ id: id });
+    user.email = changeuserdto.email;
+
     await userRepo.save(user);
     delete user.password;
     return user;
